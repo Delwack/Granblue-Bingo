@@ -37,9 +37,9 @@ using namespace std;
 
 unsigned seed = chrono::system_clock::now().time_since_epoch().count();
 mt19937 prng(seed);
-uniform_int_distribution<int> stuff(4, 6);
-uniform_int_distribution<int> color(0, 4);
-uniform_int_distribution<int> special(0, 24);
+uniform_int_distribution<long> stuff(4, 6);
+uniform_int_distribution<long> color(0, 4);
+uniform_int_distribution<long> special(0, 24);
 
 class sheet
 {
@@ -47,22 +47,22 @@ public:
 	sheet()
 	{
 		//build your board with #'s 1-25, board runs top to bottom left to right.
-		for (int i = 1; i < 26; ++i)
+		for (long i = 1; i < 26; ++i)
 		{
 			board_.push_back(i);
 		}
-		for (int i = 0; i < 5; ++i)
+		for (long i = 0; i < 5; ++i)
 		{
 			color_.push_back(i);
 		}
 		//shuffle both color and numbers
 		shuffle(board_.begin(), board_.end(), prng);
 		shuffle(color_.begin(), color_.end(), prng);
-		vector<int> tempcolor = color_;
+		vector<long> tempcolor = color_;
 		color_.clear();
 		//duplicate the colors down each row
-		for (int i = 0; i < 5; ++i)
-			for (int j = 0; j < 5; ++j)
+		for (long i = 0; i < 5; ++i)
+			for (long j = 0; j < 5; ++j)
 			{
 				color_.push_back(tempcolor[i]);
 			}
@@ -97,10 +97,10 @@ public:
 		roll_num = S.roll_num;
 	}*/
 	//this performs all the matching logic.  feed it a ball, it'll match on the sheet.
-	void matchroll(int roll_num, int roll_col, char roll_type)
+	void matchroll(long roll_num, long roll_col, char roll_type)
 	{
 		if (bingo_) return;
-		int index = 0;
+		long index = 0;
 		//find where in my grid the number is
 		while (1) 
 		{	
@@ -112,12 +112,13 @@ public:
 		//determine if color matches too
 		if (color_[index] == roll_col) { color_matches_[index] = true; }
 		//if it's the initial rolls or the center ball you rolled you don't get a step to the bonus ball
-		if (roll_type == 'i' || index == 12 ) { ++roll_num_; }
+		if (roll_type == 'r' && !(index == 12)) { ++roll_num_; }
 		//once you've achieved the bonus ball...
 		if (roll_num == 3)
 		{
-			int a;
-			int b = 0;
+			roll_num_++;
+			long a;
+			long b = 0;
 			while (1)
 			{
 				//find a free ball
@@ -137,10 +138,10 @@ public:
 	{
 		if (bingo_ == true) return false;
 		//check horizontal
-		for (int i = 0; i < 5; ++i)
+		for (long i = 0; i < 5; ++i)
 		{
-			int tempsum = 0;
-			for (int j = 0; j < 5; ++j)
+			long tempsum = 0;
+			for (long j = 0; j < 5; ++j)
 				tempsum += matches_[i * 5 + j];
 			if (tempsum == 5)
 			{
@@ -149,10 +150,10 @@ public:
 			}
 		}
 		//check vertical
-		for (int i = 0; i < 5; ++i)
+		for (long i = 0; i < 5; ++i)
 		{
-			int tempsum = 0;
-			for (int j = 0; j < 5; ++j)
+			long tempsum = 0;
+			for (long j = 0; j < 5; ++j)
 				tempsum += matches_[i + j * 5];
 			if (tempsum == 5)
 			{
@@ -161,7 +162,7 @@ public:
 			}
 		}
 		//check diags
-		int tempsum = matches_[0] + matches_[6] + matches_[12] + matches_[18] + matches_[24];
+		long tempsum = matches_[0] + matches_[6] + matches_[12] + matches_[18] + matches_[24];
 		if (tempsum == 5)
 		{
 			bingo_ = true;
@@ -181,10 +182,10 @@ public:
 	{
 		if (super_ == true) return false;
 		//check horizontal
-		for (int i = 0; i < 5; ++i)
+		for (long i = 0; i < 5; ++i)
 		{
-			int tempsum = 0;
-			for (int j = 0; j < 5; ++j)
+			long tempsum = 0;
+			for (long j = 0; j < 5; ++j)
 				tempsum += color_matches_[i * 5 + j];
 			if (tempsum == 5)
 			{
@@ -193,10 +194,10 @@ public:
 			}
 		}
 		//check vertical
-		for (int i = 0; i < 5; ++i)
+		for (long i = 0; i < 5; ++i)
 		{
-			int tempsum = 0;
-			for (int j = 0; j < 5; ++j)
+			long tempsum = 0;
+			for (long j = 0; j < 5; ++j)
 				tempsum += color_matches_[i + j * 5];
 			if (tempsum == 5)
 			{
@@ -205,7 +206,7 @@ public:
 			}
 		}
 		//check diags
-		int tempsum = color_matches_[0] + color_matches_[6] + color_matches_[12] + color_matches_[18] + color_matches_[24];
+		long tempsum = color_matches_[0] + color_matches_[6] + color_matches_[12] + color_matches_[18] + color_matches_[24];
 		if (tempsum == 5)
 		{
 			super_ = true;
@@ -222,13 +223,13 @@ public:
 	bool bingo() { return bingo_; }
 
 private:
-	vector<int>board_;
+	vector<long>board_;
 	vector<bool>matches_;
 	vector<bool>color_matches_;
-	vector<int>color_;
+	vector<long>color_;
 	bool bingo_;
 	bool super_;
-	int roll_num_;
+	long roll_num_;
 };
 
 //this controls the list of balls to be drawn
@@ -238,21 +239,21 @@ public:
 	game()
 	{
 		//build the number list and shuffle it
-		for (int i = 1; i < 26; ++i)
+		for (long i = 1; i < 26; ++i)
 			masternumlist_.push_back(i);
 		shuffle(masternumlist_.begin(), masternumlist_.end(), prng);
 	}
 
 	//draw a ball.
-	pair<int,int> bingo_roll()
+	pair<long,long> bingo_roll()
 	{
-		int temp = masternumlist_.back();
+		long temp = masternumlist_.back();
 		masternumlist_.pop_back();
-		return pair<int,int>(temp, color(prng));
+		return pair<long,long>(temp, color(prng));
 	}
 
 private:
-	vector<int> masternumlist_;
+	vector<long> masternumlist_;
 };
 
 //this class represents individual players and keeps track of performance.  Sheets (bingo boards) are owned by players.
@@ -266,7 +267,7 @@ public:
 		this->total_games_ = 0;
 		this->super_bingos_ = 0;
 		this->myboard_ = new sheet();
-		for (int i = 0; i < 4; ++i) { placements_.push_back(0); }
+		for (long i = 0; i < 4; ++i) { placements_.push_back(0); }
 	}
 	~player()
 	{
@@ -281,28 +282,28 @@ public:
 		this->myboard_ = P.myboard_;
 	}
 	//this passes on the process roll command to the board
-	void process_roll(int roll_num, int roll_col, char roll_type) { this->myboard_->matchroll(roll_num, roll_col, roll_type); }
+	void process_roll(long roll_num, long roll_col, char roll_type) { this->myboard_->matchroll(roll_num, roll_col, roll_type); }
 	//this looks for and processes wins
-	bool process_wins(int placement)
+	bool process_wins(long placement)
 	{
 		if (this->myboard_->checkbingo())
 		{
 			this->wins_++;
 			if (this->myboard_->checksuper()) { this->super_bingos_++; }
 			else if (placement == 1) {
-				this->chips_ += 1000000; 
+				this->chips_ += 100000; 
 				placements_[0]++;
 			}
 			else if (placement == 2) {
-				this->chips_ += 500000;
+				this->chips_ += 50000;
 				placements_[1]++;
 			}
 			else if (placement == 3) {
-				this->chips_ += 300000;
+				this->chips_ += 30000;
 				placements_[2]++;
 			}
 			else if (placement == 4) {
-				this->chips_ += 200000;
+				this->chips_ += 20000;
 				placements_[3]++;
 			}
 
@@ -322,49 +323,49 @@ public:
 	//this function concludes the game, subtracting your initial bet and giving you a new bingo sheet for the next game.
 	void end_of_game() 
 	{
-		this->chips_ -= 100000;
+		this->chips_ -= 10000;
 		this->total_games_++;
 		delete this->myboard_;
 		this->myboard_ = new sheet();
 	}
-	int chips() { return this->chips_; }
-	int wins() { return this->wins_; }
-	int super_bingos() { return this->super_bingos_; }
+	long chips() { return this->chips_; }
+	long wins() { return this->wins_; }
+	long super_bingos() { return this->super_bingos_; }
 
 private:
 	sheet* myboard_;
-	int chips_;
-	int wins_;
-	int total_games_;
-	int super_bingos_;
-	vector<int> placements_;
+	long chips_;
+	long wins_;
+	long total_games_;
+	long super_bingos_;
+	vector<long> placements_;
 };
 
-int main()
+long main()
 {
 	//assumptions.  add cin code here later  Tweak these to control how many ppl in the game and how many games to play
-	int num_ppl = 10;
-	int num_games = 5000;
+	long num_ppl = 10;
+	long num_games = 50000;
 	//placement keeps track of where we are in terms of 1st/2nd/3rd/4th place in the bingo game.
-	int placement = 1;
+	long placement = 1;
 	bool placement_up = false;
 	//build ppl
 	vector<player*> players;
-	for (int i = 0; i < num_ppl; ++i)
+	for (long i = 0; i < num_ppl; ++i)
 	{
 		player* temp = new player();
 		players.push_back(temp);
 	}
 	//play games
-	int games_played = 0;
+	long games_played = 0;
 	while (games_played < num_games)
 	{
 		game* current_game = new game();
 		//this is the first initial rolls
-		int first_rolls = stuff(prng);
-		for (int i = 0; i < first_rolls; ++i)
+		long first_rolls = stuff(prng);
+		for (long i = 0; i < first_rolls; ++i)
 		{
-			pair<int,int> temp = current_game->bingo_roll();
+			pair<long,long> temp = current_game->bingo_roll();
 			for (player* cur_player : players)
 			{
 				cur_player->process_roll(temp.first, temp.second, 'i');
@@ -378,9 +379,9 @@ int main()
 		if (placement_up) { ++placement; }
 		placement_up = false;
 		//these are the next set of individual rolls
-		for (int i = 0; i < 5; ++i)
+		for (long i = 0; i < 5; ++i)
 		{
-			pair<int, int> temp = current_game->bingo_roll();
+			pair<long, long> temp = current_game->bingo_roll();
 			for (player* cur_player : players)
 			{
 				cur_player->process_roll(temp.first, temp.second, 'r');
@@ -395,13 +396,13 @@ int main()
 			cur_player->end_of_game();
 		}
 		delete current_game;
-		if (games_played % 100 == 0) cout << games_played << endl;
+		if (games_played % 1000 == 0) cout << games_played << endl;
 		games_played++;
 	}
-	int i = 0;
-	int tot_chips = 0;
-	int tot_sup_bing = 0;
-	int wins = 0 ;
+	long i = 0;
+	long tot_chips = 0;
+	long tot_sup_bing = 0;
+	long wins = 0 ;
 	for (player* cur_player : players)
 	{
 		cout << "player: " << i++ << endl;
