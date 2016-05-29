@@ -1,18 +1,41 @@
 // Granblue Bingo.cpp : Defines the entry point for the console application.
 //
 
+/*
+  Granblue Bingo simulation
+
+  Game Rules:
+  5x5 bingo board, numbers 1-25.  each square has a number chosen for it at random.
+  each column also has a color associated with it.
+  each ball drawn has both a color and a number.
+  center square is always free, but the number under it can still be drawn by any ball except the bonus ball.
+  game starts by drawing 4-6 (number randomly chosen) balls.
+  then, 5 more balls are drawn.
+  you also get 1 bonus ball after 3 balls that you can place on your board are drawn.  If you draw the center number the bonus ball is on the 4th instead.
+  the bonus ball is individualized to each person, will only hit a square you do not have,
+  and can be drawn again from the master draws.  The special ball always matches square color too.
+  if you match any row, column or one of the two diagnols, you get bingo.
+  If you match the colors in addition to the numbers, you get super bingo.
+  rooms contain 5, 10 or 20 players.
+  Payout is dependant on when you bingo within your room.  
+  payouts are 10x 1st, 5x 2nd, 3x 3rd, 2x 4th, 0 5th+
+  all bingos on the same turn are considered the same place.  even if multiple people get 1st 
+  on the same turn, the next person (or set of people to bingo) will get 2nd.
+
+  the ultimate goal of this program is to calculate average returns, and get some sense of odds.
+
+  Please let me know if you find any errors.  The code and models need more extensive testing.
+*/
 #include <cstdlib>
 #include <random>
 #include <chrono>
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <algorithm>
 
 using namespace std;
 
 unsigned seed = chrono::system_clock::now().time_since_epoch().count();
-//random_device rd;
 mt19937 prng(seed);
 uniform_int_distribution<int> stuff(4, 6);
 uniform_int_distribution<int> color(0, 4);
@@ -23,24 +46,27 @@ class sheet
 public:
 	sheet()
 	{
+		//build your board with #'s 1-25, board runs top to bottom left to right.
 		for (int i = 1; i < 26; ++i)
 		{
 			board_.push_back(i);
 		}
 		for (int i = 0; i < 5; ++i)
 		{
-		color_.push_back(i);
+			color_.push_back(i);
 		}
-		//inset shuffle logics for board_ and color_ here
+		//shuffle both color and numbers
 		shuffle(board_.begin(), board_.end(), prng);
 		shuffle(color_.begin(), color_.end(), prng);
 		vector<int> tempcolor = color_;
 		color_.clear();
+		//duplicate the colors down each row
 		for (int i = 0; i < 5; ++i)
 			for (int j = 0; j < 5; ++j)
 			{
 				color_.push_back(tempcolor[i]);
 			}
+		//build vectors to store matching data
 		matches_.assign(25, false);
 		color_matches_.assign(25, false);
 		matches_[12] = true;
@@ -49,6 +75,7 @@ public:
 		super_ = 0;
 		roll_num_ = 0;
 	}
+	//copy constructor
 	void operator=(const sheet &S)
 	{
 		board_ = S.board_;
@@ -69,24 +96,31 @@ public:
 		super = S.super;
 		roll_num = S.roll_num;
 	}*/
+	//this performs all the matching logic.  feed it a ball, it'll match on the sheet.
 	void matchroll(int roll_num, int roll_col, char roll_type)
 	{
 		if (bingo_) return;
 		int index = 0;
+		//find where in my grid the number is
 		while (1) 
 		{	
 			if (board_[index] == roll_num) { break; } 
 			index++;
 		}
+		//I've matched
 		matches_[index] = true;
+		//determine if color matches too
 		if (color_[index] == roll_col) { color_matches_[index] = true; }
-		if (roll_type != 'i' && index != 12 ) { ++roll_num_; }
+		//if it's the initial rolls or the center ball you rolled you don't get a step to the bonus ball
+		if (roll_type == 'i' || index == 12 ) { ++roll_num_; }
+		//once you've achieved the bonus ball...
 		if (roll_num == 3)
 		{
 			int a;
 			int b = 0;
 			while (1)
 			{
+				//find a free ball
 				 a = special(prng);
 				 if (!matches_[a])
 				 {
@@ -98,6 +132,7 @@ public:
 		}
 	}
 
+	//this checks for bingos.
 	bool checkbingo()
 	{
 		if (bingo_ == true) return false;
@@ -125,7 +160,7 @@ public:
 				return true;
 			}
 		}
-		//check other misc stuff
+		//check diags
 		int tempsum = matches_[0] + matches_[6] + matches_[12] + matches_[18] + matches_[24];
 		if (tempsum == 5)
 		{
@@ -140,6 +175,8 @@ public:
 		}
 		return false;
 	}
+
+	//this checks for super bingos.
 	bool checksuper()
 	{
 		if (super_ == true) return false;
@@ -167,7 +204,7 @@ public:
 				return true;
 			}
 		}
-		//check other misc stuff
+		//check diags
 		int tempsum = color_matches_[0] + color_matches_[6] + color_matches_[12] + color_matches_[18] + color_matches_[24];
 		if (tempsum == 5)
 		{
@@ -194,16 +231,19 @@ private:
 	int roll_num_;
 };
 
+//this controls the list of balls to be drawn
 class game
 {
 public:
 	game()
 	{
+		//build the number list and shuffle it
 		for (int i = 1; i < 26; ++i)
 			masternumlist_.push_back(i);
 		shuffle(masternumlist_.begin(), masternumlist_.end(), prng);
 	}
 
+	//draw a ball.
 	pair<int,int> bingo_roll()
 	{
 		int temp = masternumlist_.back();
@@ -213,9 +253,9 @@ public:
 
 private:
 	vector<int> masternumlist_;
-	int winners;
 };
 
+//this class represents individual players and keeps track of performance.  Sheets (bingo boards) are owned by players.
 class player
 {
 public:
@@ -240,12 +280,9 @@ public:
 		this->super_bingos_ = P.super_bingos_;
 		this->myboard_ = P.myboard_;
 	}
-	void add_chips(int a) { this->chips_ += a; }
-	void add_win() { this->wins_ += 1; }
-	void add_game() { this->total_games_ += 1; }
-	void add_super() { this->super_bingos_ += 1; }
-	void print_stats() { }
+	//this passes on the process roll command to the board
 	void process_roll(int roll_num, int roll_col, char roll_type) { this->myboard_->matchroll(roll_num, roll_col, roll_type); }
+	//this looks for and processes wins
 	bool process_wins(int placement)
 	{
 		if (this->myboard_->checkbingo())
@@ -273,6 +310,7 @@ public:
 		}
 		return false;
 	}
+	//this outputs statistics
 	void print_player()
 	{
 		cout << "chips: " << this->chips_ << endl;
@@ -281,6 +319,7 @@ public:
 		cout << "super bingos:" << this->super_bingos_ << endl;
 		cout << "placements: " << this->placements_[0] << " " << this->placements_[1] << " " << this->placements_[2] << " " << this->placements_[3] << " " << endl;
 	}
+	//this function concludes the game, subtracting your initial bet and giving you a new bingo sheet for the next game.
 	void end_of_game() 
 	{
 		this->chips_ -= 100000;
@@ -288,6 +327,9 @@ public:
 		delete this->myboard_;
 		this->myboard_ = new sheet();
 	}
+	int chips() { return this->chips_; }
+	int wins() { return this->wins_; }
+	int super_bingos() { return this->super_bingos_; }
 
 private:
 	sheet* myboard_;
@@ -300,9 +342,10 @@ private:
 
 int main()
 {
-	//assumptions.  add cin code here later
-	int num_ppl = 20;
+	//assumptions.  add cin code here later  Tweak these to control how many ppl in the game and how many games to play
+	int num_ppl = 10;
 	int num_games = 5000;
+	//placement keeps track of where we are in terms of 1st/2nd/3rd/4th place in the bingo game.
 	int placement = 1;
 	bool placement_up = false;
 	//build ppl
@@ -312,10 +355,12 @@ int main()
 		player* temp = new player();
 		players.push_back(temp);
 	}
+	//play games
 	int games_played = 0;
 	while (games_played < num_games)
 	{
 		game* current_game = new game();
+		//this is the first initial rolls
 		int first_rolls = stuff(prng);
 		for (int i = 0; i < first_rolls; ++i)
 		{
@@ -325,12 +370,14 @@ int main()
 				cur_player->process_roll(temp.first, temp.second, 'i');
 			}
 		}
+		//check if anyone won
 		for (player* cur_player : players)
 		{
 			if (cur_player->process_wins(placement)) { placement_up = true; }
 		}
 		if (placement_up) { ++placement; }
 		placement_up = false;
+		//these are the next set of individual rolls
 		for (int i = 0; i < 5; ++i)
 		{
 			pair<int, int> temp = current_game->bingo_roll();
@@ -352,10 +399,18 @@ int main()
 		games_played++;
 	}
 	int i = 0;
+	int tot_chips = 0;
+	int tot_sup_bing = 0;
+	int wins = 0 ;
 	for (player* cur_player : players)
 	{
 		cout << "player: " << i++ << endl;
 		cur_player->print_player();
 		cout << endl;
+		tot_chips += cur_player->chips();
+		wins += cur_player->wins();
+		tot_sup_bing += cur_player->super_bingos();
+
 	}
+	cout << endl << "tot chips: " << tot_chips << endl << "wins: " << wins << endl << "Total super bingos: " << tot_sup_bing << endl;
 }
