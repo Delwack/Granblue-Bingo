@@ -32,6 +32,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 
@@ -260,13 +261,14 @@ private:
 class player
 {
 public:
-	player()
+	player(int bet)
 	{
 		this->chips_ = 0;
 		this->wins_ = 0;
 		this->total_games_ = 0;
 		this->super_bingos_ = 0;
 		this->myboard_ = new sheet();
+		this->bet_ = bet;
 		for (long i = 0; i < 4; ++i) { placements_.push_back(0); }
 	}
 	~player()
@@ -291,19 +293,19 @@ public:
 			this->wins_++;
 			if (this->myboard_->checksuper()) { this->super_bingos_++; }
 			else if (placement == 1) {
-				this->chips_ += 100000; 
+				this->chips_ += bet_ * 10; 
 				placements_[0]++;
 			}
 			else if (placement == 2) {
-				this->chips_ += 50000;
+				this->chips_ += bet_ * 5;
 				placements_[1]++;
 			}
 			else if (placement == 3) {
-				this->chips_ += 30000;
+				this->chips_ += bet_ * 3;
 				placements_[2]++;
 			}
 			else if (placement == 4) {
-				this->chips_ += 20000;
+				this->chips_ += bet_ * 2;
 				placements_[3]++;
 			}
 
@@ -312,6 +314,11 @@ public:
 		return false;
 	}
 	//this outputs statistics
+	void output_player(ofstream& F)
+	{
+		F << "chips (no sb)" << '\t' << "wins" << '\t' << "total games" << '\t' << "super bingos" << '\t' << "1st" << '\t' << "2nd" << '\t' << "3rd" << '\t' << "4th" << '\t' << "chips inc s.bingo" << endl;
+		F << chips_ << '\t' << wins_ << '\t' << total_games_ << '\t' << super_bingos_ << '\t' << placements_[0] << '\t' << placements_[1] << '\t' << placements_[2] << '\t' << placements_[3] << '\t' << chips_+super_bingos_*bet_*777 << endl;
+	}
 	void print_player()
 	{
 		cout << "chips: " << this->chips_ << endl;
@@ -323,7 +330,7 @@ public:
 	//this function concludes the game, subtracting your initial bet and giving you a new bingo sheet for the next game.
 	void end_of_game() 
 	{
-		this->chips_ -= 10000;
+		this->chips_ -= 10;
 		this->total_games_++;
 		delete this->myboard_;
 		this->myboard_ = new sheet();
@@ -331,6 +338,7 @@ public:
 	long chips() { return this->chips_; }
 	long wins() { return this->wins_; }
 	long super_bingos() { return this->super_bingos_; }
+	const vector<long>& placements() { return this->placements_;  }
 
 private:
 	sheet* myboard_;
@@ -339,13 +347,32 @@ private:
 	long total_games_;
 	long super_bingos_;
 	vector<long> placements_;
+	long bet_;
 };
 
 long main()
 {
-	//assumptions.  add cin code here later  Tweak these to control how many ppl in the game and how many games to play
-	long num_ppl = 10;
-	long num_games = 50000;
+
+	ofstream F;
+	long num_ppl = 20;
+	long num_games = 1000000;
+	int bet = 0;
+	F.open("Granblue Bingo Simulation.txt", ofstream::out | ofstream::trunc);
+	do
+	{
+		cout << "how many people at a table?" << endl;
+		cin >> num_ppl;
+	} while (num_ppl <= 0);
+
+	do
+	{
+		cout << "how many games to run?" << endl;
+		cin >> num_games;
+	} while (num_games <= 0);
+	if (num_ppl <= 5) bet = 1;
+	else if (num_ppl <= 10) bet = 10;
+	else bet = 100;
+	
 	//placement keeps track of where we are in terms of 1st/2nd/3rd/4th place in the bingo game.
 	long placement = 1;
 	bool placement_up = false;
@@ -353,7 +380,7 @@ long main()
 	vector<player*> players;
 	for (long i = 0; i < num_ppl; ++i)
 	{
-		player* temp = new player();
+		player* temp = new player(bet);
 		players.push_back(temp);
 	}
 	//play games
@@ -378,7 +405,7 @@ long main()
 		}
 		if (placement_up) { ++placement; }
 		placement_up = false;
-		//these are the next set of individual rolls
+		//these are the next set of regular rolls
 		for (long i = 0; i < 5; ++i)
 		{
 			pair<long, long> temp = current_game->bingo_roll();
@@ -403,15 +430,29 @@ long main()
 	long tot_chips = 0;
 	long tot_sup_bing = 0;
 	long wins = 0 ;
+	vector<long> placements;
+	placements.assign(4, 0);
 	for (player* cur_player : players)
 	{
-		cout << "player: " << i++ << endl;
-		cur_player->print_player();
-		cout << endl;
+		F << "player: " << i++ << endl;
+		cur_player->output_player(F);
+		F << endl;
 		tot_chips += cur_player->chips();
 		wins += cur_player->wins();
 		tot_sup_bing += cur_player->super_bingos();
-
+		for (int i = 0; i < 4;i++)
+		{
+			placements[i] += cur_player->placements()[i];
+		}
 	}
-	cout << endl << "tot chips: " << tot_chips << endl << "wins: " << wins << endl << "Total super bingos: " << tot_sup_bing << endl;
+	F << endl << endl << "tot chips: " << tot_chips << endl << "wins: " << wins << endl << "Total super bingos: " << tot_sup_bing << endl;
+	for (int i = 0; i < 4; i++)
+	{
+		F << "Place " << i << ": " << placements[i] << endl;
+	}
+	cout << endl << endl << "tot chips: " << tot_chips << endl << "wins: " << wins << endl << "Total super bingos: " << tot_sup_bing << endl;
+	for (int i = 0; i < 4; i++)
+	{
+		cout << "Place " << i << ": " << placements[i] << endl;
+	}
 }
